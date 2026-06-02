@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Camera, Factory, ListChecks, QrCode, X, CheckCircle, PackageSearch, AlertTriangle, Layers, ArrowRight, Truck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import QRScanner from '../components/QRScanner';
+import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
 
 export default function MillDashboard() {
   const [activeTab, setActiveTab] = useState('scan');
@@ -27,59 +28,68 @@ export default function MillDashboard() {
     mill_name: 'Pabrik Kelapa Sawit PT. Sukses'
   });
 
-  // Dummy Master Data (biasanya fetch dari DB)
-  const masterFarms = JSON.parse(localStorage.getItem('agrigems_farms') || '[]');
-  const masterCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
+  const [masterFarms, setMasterFarms] = useState([]);
+  const [masterCycles, setMasterCycles] = useState([]);
 
   useEffect(() => {
-    try {
-      const savedBatches = localStorage.getItem('agrigems_cpo_ready');
-      if (savedBatches) {
-        setCpoBatches(JSON.parse(savedBatches));
-      } else {
-        const DEFAULT_BATCHES = [
-          {
-            id: 'BATCH-CPO-991',
-            tanggal: new Date().toLocaleDateString('id-ID'),
-            waktu: '08:30 WIB',
-            total_bts_kg: 68180,
-            estimasi_cpo_kg: 15000,
-            status: 'Truk Telah Muat',
-            driver_name: 'Sutrisno',
-            truck_plate: 'B 9182 TQ',
-            tank_number: 'TANK-ALPHA-01',
-            mill_name: 'Pabrik Kelapa Sawit PT. Sukses',
-            manifests: [
-              { farm_id: 'FARM-01', farm_name: 'Blok Utara A', eudr_compliance: 'compliant' },
-              { farm_id: 'FARM-02', farm_name: 'Blok Selatan B', eudr_compliance: 'compliant' }
-            ]
-          },
-          {
-            id: 'BATCH-CPO-802',
-            tanggal: 'Kemarin',
-            waktu: '14:15 WIB',
-            total_bts_kg: 102270,
-            estimasi_cpo_kg: 22500,
-            status: 'Tiba di Pelabuhan',
-            driver_name: 'Wahyudi',
-            truck_plate: 'KH 8821 FG',
-            tank_number: 'TANK-BETA-09',
-            mill_name: 'Pabrik Kelapa Sawit PT. Sukses',
-            manifests: [
-              { farm_id: 'FARM-03', farm_name: 'Blok Barat C', eudr_compliance: 'compliant' }
-            ]
-          }
-        ];
-        setCpoBatches(DEFAULT_BATCHES);
-        localStorage.setItem('agrigems_cpo_ready', JSON.stringify(DEFAULT_BATCHES));
-      }
+    const fetchAllData = async () => {
+      try {
+        const farms = await syncFromSupabase('agrigems_farms');
+        setMasterFarms(farms);
 
-      const savedManifests = localStorage.getItem('agrigems_incoming_manifests');
-      if (savedManifests) {
-        setIncomingManifests(JSON.parse(savedManifests));
-      }
-    } catch (err) {}
-  }, []);
+        const cycles = await syncFromSupabase('agrigems_cycles');
+        setMasterCycles(cycles);
+
+        const incoming = await syncFromSupabase('agrigems_incoming_manifests');
+        setIncomingManifests(incoming);
+
+        const savedBatches = await syncFromSupabase('agrigems_cpo_ready');
+        if (savedBatches && savedBatches.length > 0) {
+          setCpoBatches(savedBatches);
+        } else {
+          const DEFAULT_BATCHES = [
+            {
+              id: 'BATCH-CPO-991',
+              tanggal: new Date().toLocaleDateString('id-ID'),
+              waktu: '08:30 WIB',
+              total_bts_kg: 68180,
+              estimasi_cpo_kg: 15000,
+              status: 'Truk Telah Muat',
+              driver_name: 'Sutrisno',
+              truck_plate: 'B 9182 TQ',
+              tank_number: 'TANK-ALPHA-01',
+              mill_name: 'Pabrik Kelapa Sawit PT. Sukses',
+              manifests: [
+                { farm_id: 'FARM-01', farm_name: 'Blok Utara A', eudr_compliance: 'compliant' },
+                { farm_id: 'FARM-02', farm_name: 'Blok Selatan B', eudr_compliance: 'compliant' }
+              ]
+            },
+            {
+              id: 'BATCH-CPO-802',
+              tanggal: 'Kemarin',
+              waktu: '14:15 WIB',
+              total_bts_kg: 102270,
+               estimasi_cpo_kg: 22500,
+               status: 'Tiba di Pelabuhan',
+               driver_name: 'Wahyudi',
+               truck_plate: 'KH 8821 FG',
+               tank_number: 'TANK-BETA-09',
+               mill_name: 'Pabrik Kelapa Sawit PT. Sukses',
+               manifests: [
+                 { farm_id: 'FARM-03', farm_name: 'Blok Barat C', eudr_compliance: 'compliant' }
+               ]
+             }
+           ];
+           setCpoBatches(DEFAULT_BATCHES);
+           await syncToSupabase('agrigems_cpo_ready', DEFAULT_BATCHES);
+         }
+       } catch (err) {
+         console.error("Gagal load data mill:", err);
+       }
+     };
+
+     fetchAllData();
+   }, []);
 
   const handleScanSuccess = (decodedText) => {
     try {
@@ -137,7 +147,7 @@ export default function MillDashboard() {
       alert("ID Surat Jalan (Manifest) tidak ditemukan di database. Pastikan ID benar dan statusnya sudah diisi oleh Petani.");
     }
   };
-  const handleTerimaBarang = () => {
+  const handleTerimaBarang = async () => {
     if (!scannedData) return alert("Scan QR Surat Jalan terlebih dahulu!");
     if (!weightInput || parseFloat(weightInput) <= 0) return alert("Masukkan berat netto dari timbangan pabrik!");
 
@@ -157,14 +167,27 @@ export default function MillDashboard() {
 
     const updatedManifests = [newManifest, ...incomingManifests];
     setIncomingManifests(updatedManifests);
-    localStorage.setItem('agrigems_incoming_manifests', JSON.stringify(updatedManifests));
+    await syncToSupabase('agrigems_incoming_manifests', updatedManifests);
+
+    // Update manifest status in masterCycles to 'diterima'
+    const updatedCycles = masterCycles.map(c => {
+      if (c.id === scannedData.cycle_id) {
+        return {
+          ...c,
+          manifests: c.manifests?.map(m => m.id === scannedData.id ? { ...m, status: 'diterima', berat_diterima_kg: parseFloat(weightInput) } : m) || []
+        };
+      }
+      return c;
+    });
+    setMasterCycles(updatedCycles);
+    await syncToSupabase('agrigems_cycles', updatedCycles);
     
     alert("Barang berhasil diterima dan masuk antrean Batching CPO.");
     setScannedData(null);
     setWeightInput('');
   };
 
-  const handleMulaiBatching = () => {
+  const handleMulaiBatching = async () => {
     if (incomingManifests.length === 0) return alert("Belum ada BTS yang diterima untuk diproses.");
 
     const totalBTS = incomingManifests.reduce((acc, curr) => acc + curr.berat_diterima_kg, 0);
@@ -186,10 +209,10 @@ export default function MillDashboard() {
 
     const updated = [newBatch, ...cpoBatches];
     setCpoBatches(updated);
-    localStorage.setItem('agrigems_cpo_ready', JSON.stringify(updated));
+    await syncToSupabase('agrigems_cpo_ready', updated);
     
     setIncomingManifests([]); // Kosongkan antrean
-    localStorage.setItem('agrigems_incoming_manifests', JSON.stringify([]));
+    await syncToSupabase('agrigems_incoming_manifests', []);
     
     alert(`Batch Produksi ${newBatch.id} dimulai!\nTotal TBS: ${totalBTS} Kg\nEstimasi CPO: ${estimasiCPO.toFixed(2)} Kg`);
   };
@@ -206,7 +229,7 @@ export default function MillDashboard() {
     setShowDistFormModal(true);
   };
 
-  const handleSaveDistDetails = () => {
+  const handleSaveDistDetails = async () => {
     if (!distForm.driver_name || !distForm.truck_plate || !distForm.tank_number) {
       return alert("Harap lengkapi seluruh data supir tangki, nomor polisi, dan nomor container tangki!");
     }
@@ -226,7 +249,7 @@ export default function MillDashboard() {
     });
 
     setCpoBatches(updatedBatches);
-    localStorage.setItem('agrigems_cpo_ready', JSON.stringify(updatedBatches));
+    await syncToSupabase('agrigems_cpo_ready', updatedBatches);
     setShowDistFormModal(false);
 
     // Langsung tampilkan QR code dengan payload lengkap

@@ -3,6 +3,8 @@ import { Map, Leaf, FileText, CheckCircle, X, AlertTriangle, Upload, User, Clock
 import GisMap, { calculatePolygonArea, checkPolygonOverlap, FOREST_ZONE } from '../components/GisMap';
 import { QRCodeSVG } from 'qrcode.react';
 
+import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
+
 export default function PetaniDashboard({ user }) {
   const [activeTab, setActiveTab] = useState('profile');
   
@@ -49,8 +51,9 @@ export default function PetaniDashboard({ user }) {
   const [activeManifest, setActiveManifest] = useState(null);
 
   // Load Data
-  const loadData = () => {
+  const loadData = async (shouldFetchFromSupabase = false) => {
     try {
+      // 1. Optimistic load from local storage
       const savedFarms = localStorage.getItem('agrigems_farms');
       let myFarms = [];
       if (savedFarms) {
@@ -65,14 +68,31 @@ export default function PetaniDashboard({ user }) {
         const myFarmIds = myFarms.map(f => f.id);
         setCycles(parsedCycles.filter(c => myFarmIds.includes(c.farm_id)));
       }
-    } catch(err) {}
+
+      // 2. Fetch from Supabase in the background
+      if (shouldFetchFromSupabase) {
+        const supabaseFarms = await syncFromSupabase('agrigems_farms');
+        const mySupabaseFarms = supabaseFarms.filter(f => f.petani_id === user?.id);
+        setFarms(mySupabaseFarms);
+
+        const supabaseCycles = await syncFromSupabase('agrigems_cycles');
+        const mySupabaseFarmIds = mySupabaseFarms.map(f => f.id);
+        setCycles(supabaseCycles.filter(c => mySupabaseFarmIds.includes(c.farm_id)));
+      }
+    } catch(err) {
+      console.error("Gagal load data petani:", err);
+    }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(true); // Pull from Supabase on mount
   }, [user]);
 
-  const saveToLocal = (key, data) => localStorage.setItem(key, JSON.stringify(data));
+  const saveToLocal = async (key, data) => {
+    localStorage.setItem(key, JSON.stringify(data));
+    loadData(false); // Immediate local UI update
+    await syncToSupabase(key, data); // Push to Supabase in the background
+  };
 
   // --- Handlers Lahan ---
   const handleSimpanLahan = () => {

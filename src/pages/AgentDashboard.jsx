@@ -3,6 +3,7 @@ import { Truck, Map as MapIcon, ShieldCheck, Search, Activity, Package, QrCode, 
 import { QRCodeSVG } from 'qrcode.react';
 import TrackingMap from '../components/TrackingMap';
 import QRScanner from '../components/QRScanner';
+import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
 
 const ROUTE_DEFINITIONS = {
   'pundu_banjarmasin': {
@@ -68,43 +69,47 @@ export default function AgentDashboard() {
   const [routeProgress, setRouteProgress] = useState(0);
 
   useEffect(() => {
-    // Pada aslinya Agent tidak read localStorage cycle langsung, 
-    // tapi ini untuk simulasi "pickup" dari CPO Batch pabrik yang sudah ready
-    try {
-       const savedBatches = localStorage.getItem('agrigems_cpo_ready'); 
-       if (savedBatches) {
-         setCpoBatches(JSON.parse(savedBatches));
-       } else {
-         const DEFAULT_BATCHES = [
-           {
-             id: 'BATCH-CPO-991',
-             tanggal: new Date().toLocaleDateString('id-ID'),
-             waktu: '08:30 WIB',
-             total_bts_kg: 68180,
-             estimasi_cpo_kg: 15000,
-             status: 'Truk Telah Muat',
-             manifests: [
-               { farm_id: 'FARM-01', farm_name: 'Blok Utara A' },
-               { farm_id: 'FARM-02', farm_name: 'Blok Selatan B' }
-             ]
-           },
-           {
-             id: 'BATCH-CPO-802',
-             tanggal: 'Kemarin',
-             waktu: '14:15 WIB',
-             total_bts_kg: 102270,
-             estimasi_cpo_kg: 22500,
-             status: 'Tiba di Pelabuhan',
-             manifests: [
-               { farm_id: 'FARM-03', farm_name: 'Blok Barat C' }
-             ]
-           }
-         ];
-         setCpoBatches(DEFAULT_BATCHES);
-         localStorage.setItem('agrigems_cpo_ready', JSON.stringify(DEFAULT_BATCHES));
-       }
-    } catch(err) {}
-  }, []);
+    const fetchBatches = async () => {
+      try {
+        const savedBatches = await syncFromSupabase('agrigems_cpo_ready'); 
+        if (savedBatches && savedBatches.length > 0) {
+          setCpoBatches(savedBatches);
+        } else {
+          const DEFAULT_BATCHES = [
+            {
+              id: 'BATCH-CPO-991',
+              tanggal: new Date().toLocaleDateString('id-ID'),
+              waktu: '08:30 WIB',
+              total_bts_kg: 68180,
+              estimasi_cpo_kg: 15000,
+              status: 'Truk Telah Muat',
+              manifests: [
+                { farm_id: 'FARM-01', farm_name: 'Blok Utara A' },
+                { farm_id: 'FARM-02', farm_name: 'Blok Selatan B' }
+              ]
+            },
+            {
+              id: 'BATCH-CPO-802',
+              tanggal: 'Kemarin',
+              waktu: '14:15 WIB',
+              total_bts_kg: 102270,
+              estimasi_cpo_kg: 22500,
+              status: 'Tiba di Pelabuhan',
+              manifests: [
+                { farm_id: 'FARM-03', farm_name: 'Blok Barat C' }
+              ]
+            }
+          ];
+          setCpoBatches(DEFAULT_BATCHES);
+          await syncToSupabase('agrigems_cpo_ready', DEFAULT_BATCHES);
+        }
+      } catch(err) {
+        console.error("Gagal load batches di Agent:", err);
+      }
+    };
+
+    fetchBatches();
+  }, [activeTab]);
 
   useEffect(() => {
     const active = localStorage.getItem('agrigems_active_route_batch_id');
@@ -144,7 +149,7 @@ export default function AgentDashboard() {
     };
   }, [activeRouteBatchId, cpoBatches]);
 
-  const handleMuatKeTruk = (batchId) => {
+  const handleMuatKeTruk = async (batchId) => {
     let updated = [...cpoBatches];
     const index = updated.findIndex(b => b.id === batchId);
     
@@ -164,7 +169,7 @@ export default function AgentDashboard() {
     }
     
     setCpoBatches(updated);
-    localStorage.setItem('agrigems_cpo_ready', JSON.stringify(updated));
+    await syncToSupabase('agrigems_cpo_ready', updated);
     alert(`Batch CPO ${batchId} berhasil dimuat ke Truk Tangki!`);
     setActiveTab('pickup');
   };
@@ -176,7 +181,7 @@ export default function AgentDashboard() {
     setShowRouteModal(true);
   };
 
-  const handleConfirmRoute = () => {
+  const handleConfirmRoute = async () => {
     const routeKey = `${routeOrigin}_${routeDestination}`;
     const routeDef = ROUTE_DEFINITIONS[routeKey];
     if (!routeDef) {
@@ -205,7 +210,7 @@ export default function AgentDashboard() {
     });
 
     setCpoBatches(updated);
-    localStorage.setItem('agrigems_cpo_ready', JSON.stringify(updated));
+    await syncToSupabase('agrigems_cpo_ready', updated);
     localStorage.setItem('agrigems_active_route_batch_id', selectedBatchIdForRoute);
     setActiveRouteBatchId(selectedBatchIdForRoute);
     
@@ -217,7 +222,7 @@ export default function AgentDashboard() {
     setActiveTab('tracking');
   };
 
-  const handleSelesaikanRute = (batchId) => {
+  const handleSelesaikanRute = async (batchId) => {
     const updated = cpoBatches.map(b => {
       if (b.id === batchId) {
         return { ...b, status: 'Tiba di Pelabuhan' };
@@ -226,7 +231,7 @@ export default function AgentDashboard() {
     });
     
     setCpoBatches(updated);
-    localStorage.setItem('agrigems_cpo_ready', JSON.stringify(updated));
+    await syncToSupabase('agrigems_cpo_ready', updated);
     if (localStorage.getItem('agrigems_active_route_batch_id') === batchId) {
       localStorage.removeItem('agrigems_active_route_batch_id');
     }
