@@ -69,7 +69,7 @@ export default function MillDashboard() {
               tanggal: 'Kemarin',
               waktu: '14:15 WIB',
               total_bts_kg: 102270,
-               estimasi_cpo_kg: 22500,
+              estimasi_cpo_kg: 22500,
                status: 'Tiba di Pelabuhan',
                driver_name: 'Wahyudi',
                truck_plate: 'KH 8821 FG',
@@ -89,6 +89,13 @@ export default function MillDashboard() {
      };
 
      fetchAllData();
+
+     // Polling interval
+     const interval = setInterval(() => {
+       fetchAllData();
+     }, 7000);
+
+     return () => clearInterval(interval);
    }, []);
 
   const handleScanSuccess = (decodedText) => {

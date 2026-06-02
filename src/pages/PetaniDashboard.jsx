@@ -86,6 +86,13 @@ export default function PetaniDashboard({ user }) {
 
   useEffect(() => {
     loadData(true); // Pull from Supabase on mount
+
+    // Polling interval to auto-fetch updates from other devices
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 7000);
+
+    return () => clearInterval(interval);
   }, [user]);
 
   const saveToLocal = async (key, data) => {

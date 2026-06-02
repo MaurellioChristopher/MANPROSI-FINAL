@@ -109,6 +109,13 @@ export default function AgentDashboard() {
     };
 
     fetchBatches();
+
+    // Polling interval
+    const interval = setInterval(() => {
+      fetchBatches();
+    }, 7000);
+
+    return () => clearInterval(interval);
   }, [activeTab]);
 
   useEffect(() => {
