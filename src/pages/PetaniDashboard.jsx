@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Map, Leaf, FileText, CheckCircle, X, AlertTriangle, Upload, User, Clock, RefreshCw, PlusCircle, Activity, Truck, Edit3, Printer, Calendar } from 'lucide-react';
+import { Map, Leaf, FileText, CheckCircle, X, AlertTriangle, Upload, User, Clock, RefreshCw, PlusCircle, Activity, Truck, Edit3, Printer, Calendar, Trash } from 'lucide-react';
 import GisMap, { calculatePolygonArea, checkPolygonOverlap, FOREST_ZONE } from '../components/GisMap';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -191,6 +191,44 @@ export default function PetaniDashboard({ user }) {
     setPolygonCoords([]);
     setFarmForm({ nama: '', sertifikat: '', legalitas: 'SHM', sertifikasi: 'tidak_ada', no_ispo: '' });
     setRefreshMap(prev => prev + 1);
+  };
+
+  const handleHapusLahan = async (farmId) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus lahan ini? Semua siklus tanam terkait lahan ini juga akan terhapus.")) return;
+    
+    // Hapus Lahan
+    const allFarms = JSON.parse(localStorage.getItem('agrigems_farms') || '[]');
+    const updatedFarms = allFarms.filter(f => f.id !== farmId);
+    
+    // Hapus Siklus terkait Lahan tersebut
+    const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
+    const updatedCycles = allCycles.filter(c => c.farm_id !== farmId);
+
+    // Simpan & Sync
+    await saveToLocal('agrigems_farms', updatedFarms);
+    await saveToLocal('agrigems_cycles', updatedCycles);
+    
+    alert("Lahan berhasil dihapus!");
+  };
+
+  const handleHapusManifest = async (manifestId) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus Surat Jalan (Manifest) ini?")) return;
+    
+    const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
+    
+    // Cari dan hapus manifest dari cycles
+    const updatedCycles = allCycles.map(c => {
+      if (c.manifests) {
+        return {
+          ...c,
+          manifests: c.manifests.filter(m => m.id !== manifestId)
+        };
+      }
+      return c;
+    });
+
+    await saveToLocal('agrigems_cycles', updatedCycles);
+    alert("Surat Jalan berhasil dihapus!");
   };
 
   // --- Handlers Siklus, Pemeliharaan & Panen ---
@@ -667,9 +705,14 @@ export default function PetaniDashboard({ user }) {
                         )}
                       </td>
                       <td>
-                        <button className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} onClick={() => handleEditLahan(f)}>
-                          <Edit3 size={12}/> Edit Batas
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} onClick={() => handleEditLahan(f)}>
+                            <Edit3 size={12}/> Edit Batas
+                          </button>
+                          <button className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--danger)' }} onClick={() => handleHapusLahan(f.id)}>
+                            <Trash size={12}/> Hapus
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -858,6 +901,9 @@ export default function PetaniDashboard({ user }) {
                                   </button>
                                 </>
                               )}
+                              <button className="btn-secondary" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem', color: 'var(--danger)' }} onClick={() => handleHapusManifest(manifest.id)}>
+                                Hapus
+                              </button>
                             </div>
                           </td>
                         </tr>

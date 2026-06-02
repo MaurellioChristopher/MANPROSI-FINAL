@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Factory, ListChecks, QrCode, X, CheckCircle, PackageSearch, AlertTriangle, Layers, ArrowRight, Truck } from 'lucide-react';
+import { Camera, Factory, ListChecks, QrCode, X, CheckCircle, PackageSearch, AlertTriangle, Layers, ArrowRight, Truck, Trash } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import QRScanner from '../components/QRScanner';
 import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
@@ -288,6 +288,16 @@ export default function MillDashboard() {
     };
     setActiveDistQR(JSON.stringify(payload));
     setShowQR(true);
+  };
+
+  const handleHapusBatch = async (batchId) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus Batch CPO ini?")) return;
+    
+    const updated = cpoBatches.filter(b => b.id !== batchId);
+    setCpoBatches(updated);
+    await syncToSupabase('agrigems_cpo_ready', updated);
+    
+    alert("Batch CPO berhasil dihapus!");
   };
 
   return (
@@ -584,6 +594,9 @@ export default function MillDashboard() {
                                   Lihat QR Label
                                 </button>
                               )}
+                              <button className="btn-secondary" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem', color: 'var(--danger)' }} onClick={() => handleHapusBatch(batch.id)}>
+                                Hapus
+                              </button>
                             </div>
                           </td>
                         </tr>
