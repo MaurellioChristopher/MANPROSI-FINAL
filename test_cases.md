@@ -105,8 +105,8 @@
 | TS.Sk.01 | TS.Sk.01.08 | Log Pemeliharaan Gagal (Kosong) | Negative | Gagal menyimpan pemeliharaan karena dosis/produk kosong | Terdapat siklus berjalan berstatus pemeliharaan | 1 | Klik '+ Log Pemeliharaan' | Modal log muncul. | Modal log terbuka. | Pass | Teknik Boundary Value Analysis (BVA) - Boundary Kolom Input (0) |
 | | | | | | | 2 | Kosongkan kolom Nama Produk dan Dosis (boundary 0) | Kolom input kosong. | Produk dan dosis dibiarkan kosong. | Pass | |
 | | | | | | | 3 | Klik tombol 'Simpan' | Penyimpanan ditolak, muncul error: 'Harap isi nama produk dan dosis!' | Penyimpanan gagal dengan alert kolom wajib diisi. | Fail | |
-| TS.Sk.01 | TS.Sk.01.09 | Hapus Siklus Tanam | Positive | Menghapus data siklus tanam secara permanen | Siklus tanam terdaftar di database | 1 | Klik tombol 'Hapus' pada baris atau kartu siklus tanam | Sistem memicu dialog konfirmasi hapus. | Dialog konfirmasi muncul di browser. | Pass | Teknik Equivalence Partitioning (EP) - Alur Delete Data |
-| | | | | | | 2 | Klik 'OK' pada dialog konfirmasi | Siklus tanam terhapus secara permanen beserta log pemeliharaan dan draf Surat Jalan (Manifest) terkait. | Siklus tanam terhapus permanen dari sistem beserta data terkait. | Pass | |
+| TS.Sk.01 | TS.Sk.01.09 | Hapus Siklus Tanam | Positive | Menghapus data siklus tanam yang telah selesai/ditutup (Sudah Panen) secara permanen | Terdapat siklus tanam dengan status 'Selesai' (ditutup) di database | 1 | Klik tombol 'Hapus' pada kartu siklus tanam yang berstatus 'Siklus Ditutup (Sudah Panen)' | Sistem memicu dialog konfirmasi hapus. | Dialog konfirmasi muncul di browser. | Pass | Teknik Equivalence Partitioning (EP) - Alur Delete Data |
+| | | | | | | 2 | Klik 'OK' pada dialog konfirmasi | Siklus tanam berstatus 'Selesai' terhapus secara permanen dari sistem beserta log pemeliharaan dan draf Surat Jalan (Manifest) terkait. | Siklus tanam berstatus 'Selesai' terhapus permanen dari sistem beserta data terkait. | Pass | |
 
 
 ## Halaman / Modul: Surat Jalan / Manifest

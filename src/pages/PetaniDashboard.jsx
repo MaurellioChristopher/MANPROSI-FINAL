@@ -270,7 +270,14 @@ export default function PetaniDashboard({ user }) {
 
   const handleCatatPanen = (cycleId) => {
     const berat = prompt("Masukkan berat taksiran panen (Kg):");
-    if (!berat || isNaN(berat)) return;
+    if (berat === null) return; // User Cancelled
+
+    const cleanedBerat = berat.toLowerCase().replace(/kg/g, '').trim();
+
+    if (!cleanedBerat || isNaN(cleanedBerat) || parseFloat(cleanedBerat) <= 0) {
+      alert("Harap masukkan nominal angka berat yang valid!");
+      return;
+    }
 
     const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
     const cycleIndex = allCycles.findIndex(c => c.id === cycleId);
@@ -281,7 +288,7 @@ export default function PetaniDashboard({ user }) {
     const newHarvest = {
       id: harvestId,
       tanggal: new Date().toLocaleDateString('id-ID'),
-      berat_kg: parseFloat(berat)
+      berat_kg: parseFloat(cleanedBerat)
     };
 
     // Generate Draft Surat Jalan Otomatis per Panen
