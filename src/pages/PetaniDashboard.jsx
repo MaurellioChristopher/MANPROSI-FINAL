@@ -231,6 +231,16 @@ export default function PetaniDashboard({ user }) {
     alert("Surat Jalan berhasil dihapus!");
   };
 
+  const handleHapusSiklus = async (cycleId) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus siklus tanam ini? Semua log pemeliharaan dan data Surat Jalan terkait siklus ini juga akan terhapus secara permanen.")) return;
+
+    const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
+    const updatedCycles = allCycles.filter(c => c.id !== cycleId);
+
+    await saveToLocal('agrigems_cycles', updatedCycles);
+    alert("Siklus tanam berhasil dihapus!");
+  };
+
   // --- Handlers Siklus, Pemeliharaan & Panen ---
   const handleMulaiSiklus = () => {
     if (!selectedFarmForCycle) return alert("Pilih lahan terlebih dahulu!");
@@ -765,13 +775,21 @@ export default function PetaniDashboard({ user }) {
                           </div>
                           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                             {isSelesai ? (
-                              <span className="badge badge-gray">Siklus Ditutup (Sudah Panen)</span>
+                              <>
+                                <span className="badge badge-gray">Siklus Ditutup (Sudah Panen)</span>
+                                <button className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} onClick={() => handleHapusSiklus(cycle.id)}>
+                                  <Trash size={12} /> Hapus
+                                </button>
+                              </>
                             ) : (
                               <>
                                 <span className="badge badge-green animate-pulse">Siklus Berjalan</span>
                                 <button className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }} onClick={() => handleSelesaikanSiklus(cycle.id)}>Akhiri Siklus</button>
                                 <button className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', borderColor: 'var(--primary)' }} onClick={() => openMaintenanceModal(cycle.id)}>+ Log Pemeliharaan</button>
                                 <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }} onClick={() => handleCatatPanen(cycle.id)}>+ Catat Panen Baru</button>
+                                <button className="btn-secondary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.25rem' }} onClick={() => handleHapusSiklus(cycle.id)}>
+                                  <Trash size={12} /> Hapus
+                                </button>
                               </>
                             )}
                           </div>
