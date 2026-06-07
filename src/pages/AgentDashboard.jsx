@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import TrackingMap from '../components/TrackingMap';
 import QRScanner from '../components/QRScanner';
 import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
+import { useModal } from '../components/ModalProvider';
 
 const ROUTE_DEFINITIONS = {
   'pundu_banjarmasin': {
@@ -51,6 +52,7 @@ const ROUTE_DEFINITIONS = {
 };
 
 export default function AgentDashboard() {
+  const { showAlert, showConfirm } = useModal();
   const [activeTab, setActiveTab] = useState('tracking');
   const [showQR, setShowQR] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

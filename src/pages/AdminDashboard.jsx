@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Map as MapIcon, Database, CheckCircle, ShieldAlert, XCircle } from 'lucide-react';
 import AdminMap from '../components/AdminMap';
+import { useModal } from '../components/ModalProvider';
 
 export default function AdminDashboard() {
   const { showAlert, showConfirm } = useModal();

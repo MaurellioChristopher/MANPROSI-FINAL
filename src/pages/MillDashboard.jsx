@@ -3,8 +3,10 @@ import { Camera, Factory, ListChecks, QrCode, X, CheckCircle, PackageSearch, Ale
 import { QRCodeSVG } from 'qrcode.react';
 import QRScanner from '../components/QRScanner';
 import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
+import { useModal } from '../components/ModalProvider';
 
 export default function MillDashboard() {
+  const { showAlert, showConfirm } = useModal();
   const [activeTab, setActiveTab] = useState('scan');
   
   // -- Penerimaan (Manifests) --
@@ -157,6 +159,10 @@ export default function MillDashboard() {
   const handleTerimaBarang = async () => {
     if (!scannedData) return showAlert("Scan QR Surat Jalan terlebih dahulu!");
     if (!weightInput || parseFloat(weightInput) <= 0) return showAlert("Masukkan berat netto dari timbangan pabrik!");
+
+    if (scannedData.eudr_compliance === 'non-compliant') {
+      return showAlert("GAGAL: Transaksi ditolak! Lahan asal terindikasi deforestasi (Status EUDR: Non-Compliant).");
+    }
 
     const selisih = Math.abs(parseFloat(weightInput) - scannedData.estimasi_kg);
     const toleransi = scannedData.estimasi_kg * 0.1; // toleransi 10%
