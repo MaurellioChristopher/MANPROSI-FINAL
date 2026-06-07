@@ -183,6 +183,21 @@ export default function AgentDashboard() {
     setActiveTab('pickup');
   };
 
+  const handleBatalMuatTruk = async (batchId) => {
+    if(!await showConfirm(`Apakah Anda yakin ingin membatalkan pemuatan batch ${batchId} ke dalam truk?`)) return;
+
+    const updated = cpoBatches.map(b => {
+      if (b.id === batchId) {
+        return { ...b, status: 'ready' };
+      }
+      return b;
+    });
+    
+    setCpoBatches(updated);
+    await syncToSupabase('agrigems_cpo_ready', updated);
+    showAlert(`Pemuatan Batch CPO ${batchId} berhasil dibatalkan.`);
+  };
+
   const handleMulaiRute = (batchId) => {
     setSelectedBatchIdForRoute(batchId);
     setRouteOrigin('pundu');
@@ -553,13 +568,22 @@ export default function AgentDashboard() {
                                <Truck size={14} /> Muat ke Truk
                              </button>
                            ) : batch.status === 'Truk Telah Muat' ? (
-                             <button
-                               className="btn-primary"
-                               style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}
-                               onClick={() => handleMulaiRute(batch.id)}
-                             >
-                               <Navigation size={14} /> Mulai Rute (Live)
-                             </button>
+                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                               <button
+                                 className="btn-primary"
+                                 style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem' }}
+                                 onClick={() => handleMulaiRute(batch.id)}
+                               >
+                                 <Navigation size={14} /> Mulai Rute (Live)
+                               </button>
+                               <button
+                                 className="btn-secondary"
+                                 style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.25rem', color: 'var(--danger)' }}
+                                 onClick={() => handleBatalMuatTruk(batch.id)}
+                               >
+                                 <X size={14} /> Batal Muat
+                               </button>
+                             </div>
                            ) : batch.status === 'Dalam Rute' ? (
                              <button
                                className="btn-primary"
