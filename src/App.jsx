@@ -147,7 +147,7 @@ function RegisterScreen({ onBackToLogin, onRegisterSuccess }) {
 
         <div>
           <label style={{ display: 'block', fontSize: '.83rem', fontWeight: 700, marginBottom: '.4rem', color: 'var(--text-main)' }}>Password</label>
-          <input type="password" className="input-premium" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Min. 6 karakter"/>
+          <input type="password" autoComplete="new-password" className="input-premium" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Min. 6 karakter"/>
         </div>
 
         {role === 'petani' && (
@@ -496,7 +496,7 @@ function LoginScreen({ onLogin }) {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '.83rem', fontWeight: 700, marginBottom: '.4rem', color: 'var(--text-main)' }}>Password</label>
-                  <input type="password" className="input-premium" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"/>
+                  <input type="password" autoComplete="new-password" className="input-premium" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"/>
                 </div>
                 <button type="submit" id="btn-login-submit" className="btn-primary" style={{ justifyContent: 'center', padding: '.9rem', marginTop: '.25rem', fontSize: '.95rem' }} disabled={isLoading}>
                   {isLoading ? (
