@@ -3,6 +3,7 @@ import { Users, Map as MapIcon, Database, CheckCircle, ShieldAlert, XCircle } fr
 import AdminMap from '../components/AdminMap';
 
 export default function AdminDashboard() {
+  const { showAlert, showConfirm } = useModal();
   const [activeTab, setActiveTab] = useState('overview');
   const [farms, setFarms] = useState([]);
   const [users, setUsers] = useState([
@@ -38,7 +39,7 @@ export default function AdminDashboard() {
     setDisputes(updatedDisputes);
     localStorage.setItem('agrigems_disputes', JSON.stringify(updatedDisputes));
     handleRejectFarm(farmId);
-    alert("Poligon dibatalkan. Pemberitahuan telah dikirim ke Petani terkait.");
+    showAlert("Poligon dibatalkan. Pemberitahuan telah dikirim ke Petani terkait.");
   };
 
   const handleTerimaBanding = (farmId) => {
@@ -46,11 +47,11 @@ export default function AdminDashboard() {
     setDisputes(updatedDisputes);
     localStorage.setItem('agrigems_disputes', JSON.stringify(updatedDisputes));
     handleApproveFarm(farmId);
-    alert("Banding diterima! Status poligon kini menjadi Verified.");
+    showAlert("Banding diterima! Status poligon kini menjadi Verified.");
   };
 
-  const resetData = () => {
-    if(window.confirm('PERINGATAN: Aksi ini akan menghapus semua data (Lahan, Siklus, CPO Batch) dari LocalStorage. Lanjutkan?')) {
+  const resetData = async () => {
+    if(await showConfirm('PERINGATAN: Aksi ini akan menghapus semua data (Lahan, Siklus, CPO Batch) dari LocalStorage. Lanjutkan?')) {
       localStorage.removeItem('agrigems_farms');
       localStorage.removeItem('agrigems_disputes');
       localStorage.removeItem('agrigems_cycles');

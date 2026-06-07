@@ -77,8 +77,8 @@ export default function AdminMap({ viewMode = 'all' }) {
     return () => window.removeEventListener('storage', loadFarms);
   }, []);
 
-  const handleDeleteFarm = (id) => {
-    if (window.confirm('Yakin ingin menghapus poligon lahan ini? Tindakan ini tidak dapat dibatalkan.')) {
+  const handleDeleteFarm = async (id) => {
+    if (await showConfirm('Yakin ingin menghapus poligon lahan ini? Tindakan ini tidak dapat dibatalkan.')) {
       try {
         const data = localStorage.getItem('agrigems_farms');
         if (data) {

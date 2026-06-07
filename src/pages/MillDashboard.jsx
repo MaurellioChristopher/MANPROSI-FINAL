@@ -119,13 +119,13 @@ export default function MillDashboard() {
       setWeightInput(''); // Reset timbangan
       
     } catch (err) {
-      alert("Error membaca QR Code. Pastikan ini dari Aplikasi Petani (Manifest Surat Jalan yang sudah dilengkapi).");
+      showAlert("Error membaca QR Code. Pastikan ini dari Aplikasi Petani (Manifest Surat Jalan yang sudah dilengkapi).");
       setScannedData(null);
     }
   };
   const handleManualSearch = (e) => {
     e.preventDefault();
-    if (!manualManifestId) return alert("Masukkan ID Manifest!");
+    if (!manualManifestId) return showAlert("Masukkan ID Manifest!");
     
     let foundManifest = null;
     for (let c of masterCycles) {
@@ -149,20 +149,20 @@ export default function MillDashboard() {
       });
       setWeightInput('');
       setManualManifestId('');
-      alert("Surat Jalan ditemukan!");
+      showAlert("Surat Jalan ditemukan!");
     } else {
-      alert("ID Surat Jalan (Manifest) tidak ditemukan di database. Pastikan ID benar dan statusnya sudah diisi oleh Petani.");
+      showAlert("ID Surat Jalan (Manifest) tidak ditemukan di database. Pastikan ID benar dan statusnya sudah diisi oleh Petani.");
     }
   };
   const handleTerimaBarang = async () => {
-    if (!scannedData) return alert("Scan QR Surat Jalan terlebih dahulu!");
-    if (!weightInput || parseFloat(weightInput) <= 0) return alert("Masukkan berat netto dari timbangan pabrik!");
+    if (!scannedData) return showAlert("Scan QR Surat Jalan terlebih dahulu!");
+    if (!weightInput || parseFloat(weightInput) <= 0) return showAlert("Masukkan berat netto dari timbangan pabrik!");
 
     const selisih = Math.abs(parseFloat(weightInput) - scannedData.estimasi_kg);
     const toleransi = scannedData.estimasi_kg * 0.1; // toleransi 10%
 
     if (selisih > toleransi) {
-      if(!window.confirm(`PERINGATAN: Berat aktual (${weightInput} Kg) berbeda jauh dengan estimasi surat jalan (${scannedData.estimasi_kg} Kg). Lanjutkan penerimaan?`)) return;
+      if(!await showConfirm(`PERINGATAN: Berat aktual (${weightInput} Kg) berbeda jauh dengan estimasi surat jalan (${scannedData.estimasi_kg} Kg). Lanjutkan penerimaan?`)) return;
     }
 
     const newManifest = {
@@ -189,13 +189,13 @@ export default function MillDashboard() {
     setMasterCycles(updatedCycles);
     await syncToSupabase('agrigems_cycles', updatedCycles);
     
-    alert("Barang berhasil diterima dan masuk antrean Batching CPO.");
+    showAlert("Barang berhasil diterima dan masuk antrean Batching CPO.");
     setScannedData(null);
     setWeightInput('');
   };
 
   const handleMulaiBatching = async () => {
-    if (incomingManifests.length === 0) return alert("Belum ada BTS yang diterima untuk diproses.");
+    if (incomingManifests.length === 0) return showAlert("Belum ada BTS yang diterima untuk diproses.");
 
     const totalBTS = incomingManifests.reduce((acc, curr) => acc + curr.berat_diterima_kg, 0);
     const estimasiCPO = totalBTS * 0.22; // Asumsi OER 22%
@@ -221,7 +221,7 @@ export default function MillDashboard() {
     setIncomingManifests([]); // Kosongkan antrean
     await syncToSupabase('agrigems_incoming_manifests', []);
     
-    alert(`Batch Produksi ${newBatch.id} dimulai!\nTotal TBS: ${totalBTS} Kg\nEstimasi CPO: ${estimasiCPO.toFixed(2)} Kg`);
+    showAlert(`Batch Produksi ${newBatch.id} dimulai!\nTotal TBS: ${totalBTS} Kg\nEstimasi CPO: ${estimasiCPO.toFixed(2)} Kg`);
   };
 
   // Poin 12.2: Buka modal pengisian data Tangki Distribusi
@@ -238,7 +238,7 @@ export default function MillDashboard() {
 
   const handleSaveDistDetails = async () => {
     if (!distForm.driver_name || !distForm.truck_plate || !distForm.tank_number) {
-      return alert("Harap lengkapi seluruh data supir tangki, nomor polisi, dan nomor container tangki!");
+      return showAlert("Harap lengkapi seluruh data supir tangki, nomor polisi, dan nomor container tangki!");
     }
 
     const updatedBatches = cpoBatches.map(b => {
@@ -273,7 +273,7 @@ export default function MillDashboard() {
 
     setActiveDistQR(JSON.stringify(payload));
     setShowQR(true);
-    alert(`Label QR Distribusi untuk batch ${targetBatch.id} berhasil di-generate!`);
+    showAlert(`Label QR Distribusi untuk batch ${targetBatch.id} berhasil di-generate!`);
   };
 
   const viewDistribusiQRDirect = (batch) => {
@@ -291,13 +291,13 @@ export default function MillDashboard() {
   };
 
   const handleHapusBatch = async (batchId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus Batch CPO ini?")) return;
+    if (!await showConfirm("Apakah Anda yakin ingin menghapus Batch CPO ini?")) return;
     
     const updated = cpoBatches.filter(b => b.id !== batchId);
     setCpoBatches(updated);
     await syncToSupabase('agrigems_cpo_ready', updated);
     
-    alert("Batch CPO berhasil dihapus!");
+    showAlert("Batch CPO berhasil dihapus!");
   };
 
   return (

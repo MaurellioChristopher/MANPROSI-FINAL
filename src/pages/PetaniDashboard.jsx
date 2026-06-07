@@ -4,8 +4,10 @@ import GisMap, { calculatePolygonArea, checkPolygonOverlap, FOREST_ZONE } from '
 import { QRCodeSVG } from 'qrcode.react';
 
 import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
+import { useModal } from '../components/ModalProvider';
 
 export default function PetaniDashboard({ user }) {
+  const { showAlert, showConfirm, showPrompt } = useModal();
   const [activeTab, setActiveTab] = useState('profile');
   
   // State Profile
@@ -103,8 +105,8 @@ export default function PetaniDashboard({ user }) {
 
   // --- Handlers Lahan ---
   const handleSimpanLahan = () => {
-    if (polygonCoords.length < 3) return alert("Harap buat minimal 3 titik poligon di peta!");
-    if (!farmForm.nama) return alert("Nama lahan wajib diisi!");
+    if (polygonCoords.length < 3) return showAlert("Harap buat minimal 3 titik poligon di peta!");
+    if (!farmForm.nama) return showAlert("Nama lahan wajib diisi!");
 
     // Perhitungan Luas Hektar Presisi
     const calculatedArea = calculatePolygonArea(polygonCoords);
@@ -136,7 +138,7 @@ export default function PetaniDashboard({ user }) {
         }
         return f;
       });
-      alert(`Batas Lahan "${farmForm.nama}" berhasil diperbarui.`);
+      showAlert(`Batas Lahan "${farmForm.nama}" berhasil diperbarui.`);
       setEditingFarmId(null);
     } else {
       // Mode Tambah Lahan Baru
@@ -156,7 +158,7 @@ export default function PetaniDashboard({ user }) {
       
       const allFarms = JSON.parse(localStorage.getItem('agrigems_farms') || '[]');
       updatedFarms = [...allFarms, newFarm];
-      alert(`Lahan "${farmForm.nama}" berhasil diregistrasi dengan luas ${newFarm.luas_ha} Ha.`);
+      showAlert(`Lahan "${farmForm.nama}" berhasil diregistrasi dengan luas ${newFarm.luas_ha} Ha.`);
     }
 
     saveToLocal('agrigems_farms', updatedFarms);
@@ -168,7 +170,7 @@ export default function PetaniDashboard({ user }) {
     setRefreshMap(prev => prev + 1);
 
     if (isOverlappingForest) {
-      alert("⚠️ PERINGATAN KERAS: Lahan Anda terdeteksi beririsan dengan Hutan Lindung (Non-Compliant EUDR). Status lahan ditandai merah di sistem!");
+      showAlert("⚠️ PERINGATAN KERAS: Lahan Anda terdeteksi beririsan dengan Hutan Lindung (Non-Compliant EUDR). Status lahan ditandai merah di sistem!");
     }
   };
 
@@ -194,7 +196,7 @@ export default function PetaniDashboard({ user }) {
   };
 
   const handleHapusLahan = async (farmId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus lahan ini? Semua siklus tanam terkait lahan ini juga akan terhapus.")) return;
+    if (!await showConfirm("Apakah Anda yakin ingin menghapus lahan ini? Semua siklus tanam terkait lahan ini juga akan terhapus.")) return;
     
     // Hapus Lahan
     const allFarms = JSON.parse(localStorage.getItem('agrigems_farms') || '[]');
@@ -208,11 +210,11 @@ export default function PetaniDashboard({ user }) {
     await saveToLocal('agrigems_farms', updatedFarms);
     await saveToLocal('agrigems_cycles', updatedCycles);
     
-    alert("Lahan berhasil dihapus!");
+    showAlert("Lahan berhasil dihapus!");
   };
 
   const handleHapusManifest = async (manifestId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus Surat Jalan (Manifest) ini?")) return;
+    if (!await showConfirm("Apakah Anda yakin ingin menghapus Surat Jalan (Manifest) ini?")) return;
     
     const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
     
@@ -228,26 +230,26 @@ export default function PetaniDashboard({ user }) {
     });
 
     await saveToLocal('agrigems_cycles', updatedCycles);
-    alert("Surat Jalan berhasil dihapus!");
+    showAlert("Surat Jalan berhasil dihapus!");
   };
 
   const handleHapusSiklus = async (cycleId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus siklus tanam ini? Semua log pemeliharaan dan data Surat Jalan terkait siklus ini juga akan terhapus secara permanen.")) return;
+    if (!await showConfirm("Apakah Anda yakin ingin menghapus siklus tanam ini? Semua log pemeliharaan dan data Surat Jalan terkait siklus ini juga akan terhapus secara permanen.")) return;
 
     const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
     const updatedCycles = allCycles.filter(c => c.id !== cycleId);
 
     await saveToLocal('agrigems_cycles', updatedCycles);
-    alert("Siklus tanam berhasil dihapus!");
+    showAlert("Siklus tanam berhasil dihapus!");
   };
 
   // --- Handlers Siklus, Pemeliharaan & Panen ---
   const handleMulaiSiklus = () => {
-    if (!selectedFarmForCycle) return alert("Pilih lahan terlebih dahulu!");
+    if (!selectedFarmForCycle) return showAlert("Pilih lahan terlebih dahulu!");
     
     // Cek apakah lahan sudah punya siklus aktif
     const hasActive = cycles.find(c => c.farm_id === selectedFarmForCycle && c.status !== 'selesai');
-    if (hasActive) return alert("Lahan ini masih memiliki siklus yang belum selesai!");
+    if (hasActive) return showAlert("Lahan ini masih memiliki siklus yang belum selesai!");
 
     const newCycle = {
       id: `CYC-${Date.now().toString().slice(-4)}`,
@@ -265,17 +267,17 @@ export default function PetaniDashboard({ user }) {
     
     // Refresh local
     loadData();
-    alert("Siklus tanam baru berhasil dimulai!");
+    showAlert("Siklus tanam baru berhasil dimulai!");
   };
 
-  const handleCatatPanen = (cycleId) => {
-    const berat = prompt("Masukkan berat taksiran panen (Kg):");
+  const handleCatatPanen = async (cycleId) => {
+    const berat = await showPrompt("Masukkan berat taksiran panen (Kg):");
     if (berat === null) return; // User Cancelled
 
     const cleanedBerat = berat.toLowerCase().replace(/kg/g, '').trim();
 
     if (!cleanedBerat || isNaN(cleanedBerat) || parseFloat(cleanedBerat) <= 0) {
-      alert("Harap masukkan nominal angka berat yang valid!");
+      showAlert("Harap masukkan nominal angka berat yang valid!");
       return;
     }
 
@@ -327,11 +329,11 @@ export default function PetaniDashboard({ user }) {
 
     saveToLocal('agrigems_cycles', allCycles);
     loadData();
-    alert("Panen berhasil dicatat, Siklus ditutup secara otomatis, dan Draft Surat Jalan telah dibuat!");
+    showAlert("Panen berhasil dicatat, Siklus ditutup secara otomatis, dan Draft Surat Jalan telah dibuat!");
   };
 
-  const handleSelesaikanSiklus = (cycleId) => {
-    if(!window.confirm("Yakin ingin menyelesaikan siklus ini? Lahan akan siap untuk siklus tanam berikutnya.")) return;
+  const handleSelesaikanSiklus = async (cycleId) => {
+    if(!await showConfirm("Yakin ingin menyelesaikan siklus ini? Lahan akan siap untuk siklus tanam berikutnya.")) return;
     const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
     const updated = allCycles.map(c => c.id === cycleId ? { ...c, status: 'selesai' } : c);
     saveToLocal('agrigems_cycles', updated);
@@ -352,7 +354,7 @@ export default function PetaniDashboard({ user }) {
 
   const handleSimpanMaintenance = () => {
     if (!maintenanceForm.produk || !maintenanceForm.dosis) {
-      return alert("Harap isi nama produk dan dosis!");
+      return showAlert("Harap isi nama produk dan dosis!");
     }
 
     const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
@@ -371,7 +373,7 @@ export default function PetaniDashboard({ user }) {
     saveToLocal('agrigems_cycles', allCycles);
     loadData();
     setShowMaintenanceModal(false);
-    alert("Aktivitas pemeliharaan (pupuk/obat) berhasil dicatat!");
+    showAlert("Aktivitas pemeliharaan (pupuk/obat) berhasil dicatat!");
   };
 
   // --- Handlers Manifest / Surat Jalan ---
@@ -391,7 +393,7 @@ export default function PetaniDashboard({ user }) {
 
   const handleSaveDriverDetails = () => {
     if (!driverForm.driver_name || !driverForm.driver_nik || !driverForm.truck_plate) {
-      return alert("Harap lengkapi semua data pengemudi dan armada!");
+      return showAlert("Harap lengkapi semua data pengemudi dan armada!");
     }
 
     const allCycles = JSON.parse(localStorage.getItem('agrigems_cycles') || '[]');
@@ -423,7 +425,7 @@ export default function PetaniDashboard({ user }) {
       saveToLocal('agrigems_cycles', allCycles);
       loadData();
       setShowCompleteManifestModal(false);
-      alert("Data pengangkatan berhasil dilengkapi! Surat jalan siap digunakan.");
+      showAlert("Data pengangkatan berhasil dilengkapi! Surat jalan siap digunakan.");
     }
   };
 
@@ -598,7 +600,7 @@ export default function PetaniDashboard({ user }) {
                 </div>
               </div>
               <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="btn-primary" onClick={() => alert("Profil disimpan!")}>Simpan Profil</button>
+                <button className="btn-primary" onClick={() => showAlert("Profil disimpan!")}>Simpan Profil</button>
               </div>
             </div>
           </div>

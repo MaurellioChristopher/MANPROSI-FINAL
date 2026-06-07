@@ -177,7 +177,7 @@ export default function AgentDashboard() {
     
     setCpoBatches(updated);
     await syncToSupabase('agrigems_cpo_ready', updated);
-    alert(`Batch CPO ${batchId} berhasil dimuat ke Truk Tangki!`);
+    showAlert(`Batch CPO ${batchId} berhasil dimuat ke Truk Tangki!`);
     setActiveTab('pickup');
   };
 
@@ -192,7 +192,7 @@ export default function AgentDashboard() {
     const routeKey = `${routeOrigin}_${routeDestination}`;
     const routeDef = ROUTE_DEFINITIONS[routeKey];
     if (!routeDef) {
-      alert("Kombinasi rute tidak valid!");
+      showAlert("Kombinasi rute tidak valid!");
       return;
     }
 
@@ -225,7 +225,7 @@ export default function AgentDashboard() {
     setSelectedBatchIdForRoute(null);
     setRouteProgress(0);
 
-    alert(`Rute pengiriman dari ${routeDef.originName} ke ${routeDef.destName} untuk batch ${selectedBatchIdForRoute} telah dimulai secara LIVE!`);
+    showAlert(`Rute pengiriman dari ${routeDef.originName} ke ${routeDef.destName} untuk batch ${selectedBatchIdForRoute} telah dimulai secara LIVE!`);
     setActiveTab('tracking');
   };
 
@@ -242,7 +242,7 @@ export default function AgentDashboard() {
     if (localStorage.getItem('agrigems_active_route_batch_id') === batchId) {
       localStorage.removeItem('agrigems_active_route_batch_id');
     }
-    alert(`Batch ${batchId} telah sukses didepositkan di Pelabuhan!`);
+    showAlert(`Batch ${batchId} telah sukses didepositkan di Pelabuhan!`);
   };
 
   const handleInspectScan = (decodedText) => {
@@ -257,7 +257,7 @@ export default function AgentDashboard() {
   };
 
   const handleInspect = (queryId = searchQuery, payload = null) => {
-    if (!queryId) return alert("Masukkan ID Batch / Scan QR Mill!");
+    if (!queryId) return showAlert("Masukkan ID Batch / Scan QR Mill!");
     
     setIsSearching(true);
     setSearchResult(null);
