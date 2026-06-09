@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Truck, Map as MapIcon, ShieldCheck, Search, Activity, Package, QrCode, X, CheckCircle, PackageSearch, Layers, Navigation } from 'lucide-react';
+import { Truck, Map as MapIcon, ShieldCheck, Search, Activity, Package, QrCode, X, CheckCircle, PackageSearch, Layers, Navigation, TreePine } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import TrackingMap from '../components/TrackingMap';
 import QRScanner from '../components/QRScanner';
 import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
 import { useModal } from '../components/ModalProvider';
+import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
+import { FOREST_ZONE, checkPolygonOverlap } from '../components/GisMap';
 
 const ROUTE_DEFINITIONS = {
   'pundu_banjarmasin': {
@@ -70,6 +72,11 @@ export default function AgentDashboard() {
   const [routeDestination, setRouteDestination] = useState('banjarmasin');
   const [routeProgress, setRouteProgress] = useState(0);
 
+  // GIS Verification Modal State
+  const [showGisModal, setShowGisModal] = useState(false);
+  const [gisVerifyFarm, setGisVerifyFarm] = useState(null);
+  const [masterFarms, setMasterFarms] = useState([]);
+
   useEffect(() => {
     const fetchBatches = async () => {
       try {
@@ -105,6 +112,10 @@ export default function AgentDashboard() {
           setCpoBatches(DEFAULT_BATCHES);
           await syncToSupabase('agrigems_cpo_ready', DEFAULT_BATCHES);
         }
+
+        // Load master farms for GIS verification
+        const farms = await syncFromSupabase('agrigems_farms');
+        if (farms) setMasterFarms(farms);
       } catch(err) {
         console.error("Gagal load batches di Agent:", err);
       }
@@ -392,7 +403,7 @@ export default function AgentDashboard() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem' }}>
                       <div><span className="text-muted">Pabrik Pengolah:</span> <strong style={{ display: 'block' }}>{searchResult.mill}</strong></div>
                       <div><span className="text-muted">Tanggal Batching:</span> <strong style={{ display: 'block' }}>{searchResult.tanggalProses}</strong></div>
-                      <div><span className="text-muted">Total Volume CPO:</span> <strong style={{ display: 'block', color: 'var(--secondary)' }}>{searchResult.volume_cpo_kg?.toLocaleString('id-ID')} Kg</strong></div>
+                      <div><span className="text-muted">Total Volume CPO:</span> <strong style={{ display: 'block', color: 'var(--secondary)' }}>{searchResult.volume_cpo_kg?.toLocaleString('id-ID')} Liter</strong></div>
                     </div>
                  </div>
 
@@ -437,7 +448,9 @@ export default function AgentDashboard() {
                    
                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                      {searchResult.rawBatch?.manifests?.length > 0 ? (
-                       searchResult.rawBatch.manifests.map((manifest, i) => (
+                       searchResult.rawBatch.manifests.map((manifest, i) => {
+                        const farmData = masterFarms.find(f => f.id === manifest.farm_id);
+                        return (
                          <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', background: 'white', overflow: 'hidden', boxShadow: 'var(--shadow-xs)' }}>
                            <div style={{ background: 'var(--surface-hover)', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                              <strong style={{ fontSize: '0.9rem', color: 'var(--primary-dark)' }}>🌴 {manifest.farm_name || `Lahan ${manifest.farm_id}`}</strong>
@@ -481,10 +494,25 @@ export default function AgentDashboard() {
                                )}
                              </div>
                            </div>
+                           {/* Tombol Verifikasi Peta */}
+                           <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border)', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                               {farmData && farmData.polygon ? 'Data poligon GIS tersedia.' : 'Data poligon belum tersedia.'}
+                             </span>
+                             <button 
+                               className="btn-secondary" 
+                               style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#065f46', borderColor: '#065f46' }}
+                               onClick={() => {
+                                 setGisVerifyFarm({ ...manifest, farmData });
+                                 setShowGisModal(true);
+                               }}
+                             >
+                               <TreePine size={14}/> Lihat Bukti Spasial
+                             </button>
+                           </div>
                          </div>
-                       ))
+                       )})
                      ) : (
-                       // Fallback mock jika tidak ada manifest detail
                        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                          Tidak ada detail manifest. Batch menggunakan data asal lahan default.
                        </div>
@@ -545,7 +573,7 @@ export default function AgentDashboard() {
                          </td>
                          <td style={{ fontWeight: 600 }}>{batch.id}</td>
                          <td style={{ color: '#d97706', fontWeight: 700 }}>
-                           {batch.estimasi_cpo_kg?.toLocaleString('id-ID')} Kg
+                           {batch.estimasi_cpo_kg?.toLocaleString('id-ID')} Liter
                          </td>
                          <td>
                            {batch.status === 'proses' || batch.status === 'ready' ? (
@@ -755,6 +783,135 @@ export default function AgentDashboard() {
       )}
 
       </div>
+
+      {/* Modal Verifikasi Peta Spasial Lahan & Hutan Historis (GIS) */}
+      {showGisModal && gisVerifyFarm && (
+        <div className="modal-overlay" onClick={() => setShowGisModal(false)}>
+          <div className="qr-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '750px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '1rem' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <TreePine size={20} style={{ color: '#065f46' }}/> Verifikasi Peta Spasial Lahan & Hutan Lindung Historis
+              </h4>
+              <button onClick={() => setShowGisModal(false)} className="btn-icon" style={{ padding: '0.3rem' }}><X size={16} /></button>
+            </div>
+
+            {/* Info Lahan */}
+            <div style={{ width: '100%', background: 'var(--surface-hover)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>Nama Lahan: <strong>{gisVerifyFarm.farm_name || gisVerifyFarm.farm_id}</strong></div>
+                <div>Identitas Lahan: <strong>{gisVerifyFarm.farm_id}</strong></div>
+                <div>Petani Pengirim: <strong>{gisVerifyFarm.petani_name || 'Petani Mandiri'}</strong></div>
+                <div>Status European Union Deforestation Regulation: 
+                  <strong style={{ color: gisVerifyFarm.eudr_compliance === 'non-compliant' ? '#dc2626' : '#15803d', marginLeft: '0.25rem' }}>
+                    {gisVerifyFarm.eudr_compliance === 'non-compliant' ? 'Tidak Sesuai (Deforestasi)' : 'Sesuai (Aman)'}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Peta GIS Verifikasi */}
+            <div style={{ width: '100%', height: '400px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', marginBottom: '1rem' }}>
+              <MapContainer 
+                center={gisVerifyFarm.farmData?.polygon?.[0] || [-2.20, 113.88]} 
+                zoom={12} 
+                style={{ height: '100%', width: '100%' }}
+              >
+                <TileLayer
+                  attribution='&copy; Google Maps'
+                  url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                />
+                
+                {/* Zona Hutan Lindung Historis */}
+                <Polygon positions={FOREST_ZONE} pathOptions={{ color: '#064e3b', fillColor: '#065f46', fillOpacity: 0.3, weight: 3, dashArray: '6, 6' }}>
+                  <Popup>
+                    <b>🌲 Kawasan Hutan Lindung Historis (European Union Deforestation Regulation 2020)</b><br/>
+                    Zona lindung berdasarkan data peta Geographic Information System (GIS) masa lampau.<br/>
+                    Tidak boleh ada aktivitas deforestasi sesuai regulasi European Union Deforestation Regulation.
+                  </Popup>
+                </Polygon>
+
+                {/* Poligon Lahan yang sedang diverifikasi */}
+                {gisVerifyFarm.farmData?.polygon && gisVerifyFarm.farmData.polygon.length >= 3 && (() => {
+                  const isOverlap = checkPolygonOverlap(gisVerifyFarm.farmData.polygon, FOREST_ZONE);
+                  return (
+                    <Polygon 
+                      positions={gisVerifyFarm.farmData.polygon} 
+                      pathOptions={{ 
+                        color: isOverlap ? '#dc2626' : '#15803d', 
+                        fillColor: isOverlap ? '#ef4444' : '#22c55e', 
+                        fillOpacity: 0.45, 
+                        weight: 3 
+                      }}
+                    >
+                      <Popup>
+                        <b>🌴 {gisVerifyFarm.farm_name}</b><br/>
+                        Luas: {gisVerifyFarm.farmData.luas_ha} Ha<br/>
+                        Status: {isOverlap 
+                          ? '🔴 BERIRISAN dengan Hutan Lindung Historis - Tidak Sesuai European Union Deforestation Regulation' 
+                          : '🟢 TIDAK beririsan - Lahan aman dari deforestasi'}
+                      </Popup>
+                    </Polygon>
+                  );
+                })()}
+              </MapContainer>
+            </div>
+
+            {/* Hasil Analisis Spasial */}
+            {gisVerifyFarm.farmData?.polygon && gisVerifyFarm.farmData.polygon.length >= 3 ? (() => {
+              const isOverlap = checkPolygonOverlap(gisVerifyFarm.farmData.polygon, FOREST_ZONE);
+              return (
+                <div style={{ 
+                  width: '100%', 
+                  padding: '1rem', 
+                  borderRadius: 'var(--radius-md)', 
+                  background: isOverlap ? '#fef2f2' : '#f0fdf4', 
+                  border: `1px solid ${isOverlap ? '#fca5a5' : '#bbf7d0'}`,
+                  marginBottom: '0.5rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    {isOverlap ? (
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: '#dc2626' }}>⚠️ PERINGATAN: Lahan Beririsan dengan Hutan Lindung Historis</span>
+                    ) : (
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: '#15803d' }}>✅ Verifikasi Berhasil: Lahan Aman dari Deforestasi</span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: isOverlap ? '#991b1b' : '#166534', margin: 0, lineHeight: '1.5' }}>
+                    {isOverlap 
+                      ? `Berdasarkan analisis spasial Geographic Information System (GIS), poligon lahan "${gisVerifyFarm.farm_name}" terdeteksi BERIRISAN dengan kawasan Hutan Lindung Historis sebelum tahun 2020. Lahan ini TIDAK memenuhi persyaratan European Union Deforestation Regulation. Transaksi komoditas dari lahan ini berisiko ditolak oleh pasar Uni Eropa.`
+                      : `Berdasarkan analisis spasial Geographic Information System (GIS), poligon lahan "${gisVerifyFarm.farm_name}" TIDAK beririsan dengan kawasan Hutan Lindung Historis sebelum tahun 2020. Lahan ini MEMENUHI persyaratan European Union Deforestation Regulation dan aman untuk diperdagangkan di pasar Uni Eropa.`
+                    }
+                  </p>
+                </div>
+              );
+            })() : (
+              <div style={{ width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', background: '#fffbeb', border: '1px solid #fcd34d', marginBottom: '0.5rem' }}>
+                <p style={{ fontSize: '0.85rem', color: '#92400e', margin: 0 }}>
+                  ⚠️ Data poligon Geographic Information System (GIS) untuk lahan ini belum tersedia di database. Verifikasi spasial tidak dapat dilakukan. Silakan minta petani untuk mendaftarkan batas lahan di peta Geographic Information System (GIS).
+                </p>
+              </div>
+            )}
+
+            {/* Legenda */}
+            <div style={{ width: '100%', display: 'flex', gap: '1.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', padding: '0.5rem 0' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span style={{ width: 12, height: 12, border: '2px dashed #065f46', borderRadius: 2, background: 'rgba(6,95,70,0.2)', display: 'inline-block' }}></span>
+                Hutan Lindung Historis (European Union Deforestation Regulation 2020)
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span style={{ width: 12, height: 12, borderRadius: 2, background: '#22c55e', display: 'inline-block' }}></span>
+                Lahan Aman
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span style={{ width: 12, height: 12, borderRadius: 2, background: '#ef4444', display: 'inline-block' }}></span>
+                Lahan Deforestasi
+              </span>
+            </div>
+
+            <button className="btn-secondary" style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }} onClick={() => setShowGisModal(false)}>Tutup Verifikasi</button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

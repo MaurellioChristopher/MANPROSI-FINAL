@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Camera, Factory, ListChecks, QrCode, X, CheckCircle, PackageSearch, AlertTriangle, Layers, ArrowRight, Truck, Trash } from 'lucide-react';
+import { Camera, Factory, ListChecks, QrCode, X, CheckCircle, PackageSearch, AlertTriangle, Layers, ArrowRight, Truck, Trash, LayoutDashboard } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import QRScanner from '../components/QRScanner';
 import { syncFromSupabase, syncToSupabase } from '../lib/syncHelper';
@@ -7,7 +7,7 @@ import { useModal } from '../components/ModalProvider';
 
 export default function MillDashboard() {
   const { showAlert, showConfirm } = useModal();
-  const [activeTab, setActiveTab] = useState('scan');
+  const [activeTab, setActiveTab] = useState('overview');
   
   // -- Penerimaan (Manifests) --
   const [scannedData, setScannedData] = useState(null);
@@ -108,7 +108,7 @@ export default function MillDashboard() {
       
       const cycle = masterCycles.find(c => c.id === payload.cycle_id);
       const farmId = payload.farm_id || (cycle ? cycle.farm_id : null);
-      const farm = masterFarms.find(f => f.id === farmId) || { farm_name: 'Unknown Farm' };
+      const farm = masterFarms.find(f => f.id === farmId) || { farm_name: payload.farm_name || 'Unknown Farm' };
 
       setScannedData({
         ...payload,
@@ -141,7 +141,7 @@ export default function MillDashboard() {
     }
     
     if (foundManifest) {
-      const farm = masterFarms.find(f => f.id === foundManifest.farm_id) || { farm_name: 'Unknown Farm', sertifikasi: 'tidak_ada' };
+      const farm = masterFarms.find(f => f.id === foundManifest.farm_id) || { farm_name: foundManifest.farm_name || 'Unknown Farm', sertifikasi: 'tidak_ada' };
       setScannedData({
         ...foundManifest,
         farm_name: farm.farm_name,
@@ -315,7 +315,12 @@ export default function MillDashboard() {
         </div>
 
         <nav className="sidebar-nav">
-          <div className="sidebar-section-label">Stasiun Penerimaan</div>
+          <div className="sidebar-section-label">Ringkasan</div>
+          <button className={`sidebar-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>
+            <LayoutDashboard size={18} /> Overview Pabrik (Mill)
+          </button>
+
+          <div className="sidebar-section-label" style={{ marginTop: '1rem' }}>Stasiun Penerimaan</div>
           <button className={`sidebar-btn ${activeTab === 'scan' ? 'active' : ''}`} onClick={() => setActiveTab('scan')}>
             <Camera size={18} /> Pindai & Validasi Surat Jalan
           </button>
@@ -331,6 +336,252 @@ export default function MillDashboard() {
       </aside>
 
       <div className="dashboard-content">
+
+        {/* --- TAB OVERVIEW DASHBOARD MILL --- */}
+        {activeTab === 'overview' && (() => {
+          const totalTBSReceived = incomingManifests.reduce((a, c) => a + (c.berat_diterima_kg || 0), 0);
+          const totalCPOProduced = cpoBatches.reduce((a, c) => a + (c.estimasi_cpo_kg || 0), 0);
+          const totalBatchCount = cpoBatches.length;
+          const totalShipped = cpoBatches.filter(b => b.status === 'ready' || b.status === 'Truk Telah Muat' || b.status === 'Dalam Rute' || b.status === 'Tiba di Pelabuhan').length;
+          const pendingBatches = cpoBatches.filter(b => b.status === 'proses');
+          const shippedBatches = cpoBatches.filter(b => b.status === 'ready' || b.status === 'Truk Telah Muat' || b.status === 'Dalam Rute' || b.status === 'Tiba di Pelabuhan');
+
+          return (
+            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              {/* Ringkasan Metrik Utama */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                <div className="metric-card" style={{ borderLeft: '4px solid #d97706' }}>
+                  <span className="metric-title">Tandan Buah Segar (TBS) Diterima</span>
+                  <span className="metric-value" style={{ color: '#d97706' }}>
+                    {totalTBSReceived.toLocaleString('id-ID')} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>Kilogram</span>
+                  </span>
+                  <span className="metric-sub">Dari {incomingManifests.length} Surat Jalan (Manifest) masuk</span>
+                </div>
+                <div className="metric-card" style={{ borderLeft: '4px solid #15803d' }}>
+                  <span className="metric-title">Crude Palm Oil (CPO) Diproduksi</span>
+                  <span className="metric-value" style={{ color: '#15803d' }}>
+                    {totalCPOProduced.toLocaleString('id-ID')} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>Liter</span>
+                  </span>
+                  <span className="metric-sub">Dari {totalBatchCount} Batch Produksi</span>
+                </div>
+                <div className="metric-card" style={{ borderLeft: '4px solid #3b82f6' }}>
+                  <span className="metric-title">Total Batch Produksi</span>
+                  <span className="metric-value" style={{ color: '#3b82f6' }}>
+                    {totalBatchCount} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>Batch</span>
+                  </span>
+                  <span className="metric-sub">{pendingBatches.length} menunggu tangki, {shippedBatches.length} sudah dikirim</span>
+                </div>
+                <div className="metric-card" style={{ borderLeft: '4px solid #7c3aed' }}>
+                  <span className="metric-title">Pengeluaran / Transportasi</span>
+                  <span className="metric-value" style={{ color: '#7c3aed' }}>
+                    {totalShipped} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>Pengiriman</span>
+                  </span>
+                  <span className="metric-sub">Truk tangki telah berangkat atau tiba di pelabuhan</span>
+                </div>
+              </div>
+
+              {/* Rekap Penerimaan Barang (Tandan Buah Segar / TBS) */}
+              <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="panel-header" style={{ padding: '1.25rem 1.5rem', marginBottom: 0, background: '#fff7ed', borderBottom: '1px solid #fed7aa' }}>
+                  <div className="panel-icon orange"><PackageSearch size={20}/></div>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Rekap Penerimaan Barang (Tandan Buah Segar)</h3>
+                    <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>Seluruh Surat Jalan (Manifest) yang sudah diterima dan ditimbang di Stasiun Penerimaan Pabrik.</p>
+                  </div>
+                </div>
+                <table className="table-modern">
+                  <thead>
+                    <tr>
+                      <th>Waktu Diterima</th>
+                      <th>Asal Lahan</th>
+                      <th>Estimasi Surat Jalan (Kilogram)</th>
+                      <th>Berat Netto Aktual (Kilogram)</th>
+                      <th>Status European Union Deforestation Regulation</th>
+                      <th>Selisih</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {incomingManifests.length === 0 ? (
+                      <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Belum ada Tandan Buah Segar (TBS) yang diterima hari ini.</td></tr>
+                    ) : incomingManifests.map((m, idx) => {
+                      const selisih = m.berat_diterima_kg - m.estimasi_kg;
+                      const isAnomali = Math.abs(selisih) > (m.estimasi_kg * 0.1);
+                      return (
+                        <tr key={idx}>
+                          <td>{m.waktu_terima || '-'}</td>
+                          <td style={{ fontWeight: 600 }}>{m.farm_name}</td>
+                          <td className="text-muted">{m.estimasi_kg?.toLocaleString('id-ID')}</td>
+                          <td style={{ fontWeight: 700, color: 'var(--primary-dark)' }}>{m.berat_diterima_kg?.toLocaleString('id-ID')}</td>
+                          <td>
+                            {m.eudr_compliance === 'non-compliant' ? (
+                              <span className="badge badge-red">Tidak Sesuai (Deforestasi)</span>
+                            ) : (
+                              <span className="badge badge-green">Sesuai (Compliant)</span>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{ color: isAnomali ? 'var(--danger)' : 'inherit', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              {selisih > 0 ? '+' : ''}{selisih} Kilogram
+                              {isAnomali && <AlertTriangle size={14} color="var(--danger)" />}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Rekap Batch Produksi (Crude Palm Oil) */}
+              <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="panel-header" style={{ padding: '1.25rem 1.5rem', marginBottom: 0, background: '#ecfdf5', borderBottom: '1px solid #bbf7d0' }}>
+                  <div className="panel-icon green"><Factory size={20}/></div>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Rekap Batch Produksi (Crude Palm Oil)</h3>
+                    <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>Seluruh batch produksi Crude Palm Oil (CPO) yang telah diproses dari Tandan Buah Segar (TBS) yang diterima.</p>
+                  </div>
+                </div>
+                <table className="table-modern">
+                  <thead>
+                    <tr>
+                      <th>Identitas Batch</th>
+                      <th>Tanggal Produksi</th>
+                      <th>Total Tandan Buah Segar Masuk (Kilogram)</th>
+                      <th>Hasil Crude Palm Oil (Liter)</th>
+                      <th>Jumlah Surat Jalan</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cpoBatches.length === 0 ? (
+                      <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Belum ada batch Crude Palm Oil (CPO) yang diproduksi.</td></tr>
+                    ) : cpoBatches.map(b => (
+                      <tr key={b.id}>
+                        <td style={{ fontWeight: 700, color: 'var(--primary-dark)' }}>{b.id}</td>
+                        <td>{b.tanggal} {b.waktu && <><br/><span className="text-muted" style={{ fontSize: '0.8rem' }}>{b.waktu}</span></>}</td>
+                        <td>{b.total_bts_kg?.toLocaleString('id-ID')}</td>
+                        <td style={{ fontWeight: 700, color: '#d97706' }}>{b.estimasi_cpo_kg?.toLocaleString('id-ID')}</td>
+                        <td>{b.manifests?.length || 0} Surat Jalan</td>
+                        <td>
+                          {b.status === 'proses' ? (
+                            <span className="badge badge-yellow">Menunggu Tangki</span>
+                          ) : b.status === 'ready' ? (
+                            <span className="badge badge-blue">Siap Kirim</span>
+                          ) : (
+                            <span className="badge badge-green" style={{ textTransform: 'capitalize' }}>{b.status}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Rekap Pengeluaran Barang / Transportasi */}
+              <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="panel-header" style={{ padding: '1.25rem 1.5rem', marginBottom: 0, background: '#eff6ff', borderBottom: '1px solid #bfdbfe' }}>
+                  <div className="panel-icon blue"><Truck size={20}/></div>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Rekap Pengeluaran Barang / Transportasi</h3>
+                    <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>Seluruh pengiriman truk tangki Crude Palm Oil (CPO) yang telah dilengkapi data sopir dan armada.</p>
+                  </div>
+                </div>
+                <table className="table-modern">
+                  <thead>
+                    <tr>
+                      <th>Identitas Batch</th>
+                      <th>Volume Crude Palm Oil (Liter)</th>
+                      <th>Nama Sopir Tangki</th>
+                      <th>Nomor Polisi Truk</th>
+                      <th>Nomor Tangki / Container</th>
+                      <th>Status Ekspedisi</th>
+                      <th>Quick Response Code</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shippedBatches.length === 0 ? (
+                      <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Belum ada pengiriman Crude Palm Oil (CPO). Lengkapi data tangki di menu Pengeluaran CPO.</td></tr>
+                    ) : shippedBatches.map(batch => (
+                      <tr key={batch.id}>
+                        <td style={{ fontWeight: 700 }}>{batch.id}</td>
+                        <td style={{ color: '#d97706', fontWeight: 700 }}>{batch.estimasi_cpo_kg?.toLocaleString('id-ID')}</td>
+                        <td>{batch.driver_name || <span className="text-muted" style={{ fontStyle: 'italic' }}>Belum diisi</span>}</td>
+                        <td>{batch.truck_plate || '-'}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--primary-dark)' }}>{batch.tank_number || '-'}</td>
+                        <td>
+                          <span className="badge badge-green" style={{ textTransform: 'capitalize' }}>{batch.status}</span>
+                        </td>
+                        <td>
+                          {batch.driver_name ? (
+                            <button className="btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }} onClick={() => viewDistribusiQRDirect(batch)}>
+                              <QrCode size={13}/> Lihat Quick Response Code
+                            </button>
+                          ) : (
+                            <button className="btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }} onClick={() => openDistFormModal(batch)}>
+                              Lengkapi & Generate Quick Response Code
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Form Pembuatan Quick Response Code (QR Code) - Daftar Batch yang Memerlukan Label */}
+              <div className="glass-panel">
+                <div className="panel-header">
+                  <div className="panel-icon orange"><QrCode size={20}/></div>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem' }}>Form Pembuatan Quick Response Code (Label Distribusi)</h3>
+                    <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>Pilih batch Crude Palm Oil (CPO) untuk melengkapi data sopir tangki dan menghasilkan Quick Response Code distribusi.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {cpoBatches.length === 0 ? (
+                    <div className="empty-state" style={{ padding: '2rem' }}>
+                      <QrCode size={32} />
+                      <p>Belum ada batch Crude Palm Oil (CPO) yang diproduksi. Mulai proses batching di menu Produksi & Batching.</p>
+                    </div>
+                  ) : cpoBatches.map(batch => {
+                    const isComplete = batch.driver_name && batch.truck_plate && batch.tank_number;
+                    return (
+                      <div key={batch.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: isComplete ? '#f0fdf4' : 'var(--surface-hover)' }}>
+                        <div>
+                          <strong style={{ color: 'var(--primary-dark)' }}>{batch.id}</strong>
+                          <span className="text-muted" style={{ marginLeft: '0.75rem', fontSize: '0.85rem' }}>
+                            Volume: {batch.estimasi_cpo_kg?.toLocaleString('id-ID')} Liter
+                          </span>
+                          {isComplete && (
+                            <span style={{ marginLeft: '0.75rem', fontSize: '0.8rem', color: '#15803d' }}>
+                              — Sopir: {batch.driver_name} | Plat: {batch.truck_plate} | Tangki: {batch.tank_number}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {isComplete ? (
+                            <>
+                              <button className="btn-secondary" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }} onClick={() => viewDistribusiQRDirect(batch)}>
+                                <QrCode size={13}/> Lihat Quick Response Code
+                              </button>
+                              <button className="btn-secondary" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem', color: 'var(--primary-dark)' }} onClick={() => openDistFormModal(batch)}>
+                                Edit Data Tangki
+                              </button>
+                            </>
+                          ) : (
+                            <button className="btn-primary" style={{ padding: '0.35rem 0.7rem', fontSize: '0.8rem' }} onClick={() => openDistFormModal(batch)}>
+                              Lengkapi Data Sopir & Generate Quick Response Code
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* --- TAB SCAN PENERIMAAN --- */}
         {activeTab === 'scan' && (
@@ -495,7 +746,7 @@ export default function MillDashboard() {
                 <div className="metric-card" style={{ background: '#fff7ed', borderColor: '#fed7aa' }}>
                   <span className="metric-title" style={{ color: '#c2410c' }}>Estimasi Output CPO</span>
                   <span className="metric-value" style={{ color: '#9a3412' }}>
-                    {(incomingManifests.reduce((a,c) => a + c.berat_diterima_kg, 0) * 0.22).toLocaleString('id-ID', {maximumFractionDigits:1})} <span style={{ fontSize: '1rem', opacity: 0.8 }}>Kg</span>
+                    {(incomingManifests.reduce((a,c) => a + c.berat_diterima_kg, 0) * 0.22).toLocaleString('id-ID', {maximumFractionDigits:1})} <span style={{ fontSize: '1rem', opacity: 0.8 }}>Liter</span>
                   </span>
                   <span className="metric-sub" style={{ color: '#c2410c' }}>OER Standar: 22.0%</span>
                 </div>
@@ -526,7 +777,7 @@ export default function MillDashboard() {
                       <td style={{ fontWeight: 700, color: 'var(--primary-dark)' }}>{b.id}</td>
                       <td>{b.tanggal}</td>
                       <td>{b.total_bts_kg.toLocaleString('id-ID')} Kg</td>
-                      <td style={{ fontWeight: 700, color: '#d97706' }}>{b.estimasi_cpo_kg.toLocaleString('id-ID')} Kg</td>
+                      <td style={{ fontWeight: 700, color: '#d97706' }}>{b.estimasi_cpo_kg.toLocaleString('id-ID')} Liter</td>
                       <td>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                           Terdiri dari {b.manifests.length} pengangkatan.<br/>
@@ -652,12 +903,12 @@ export default function MillDashboard() {
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
               <div style={{ background: 'var(--surface-hover)', padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem' }}>
                 Batch ID: <strong>{selectedBatchForDist.id}</strong><br/>
-                Volume Hasil CPO: <strong>{selectedBatchForDist.estimasi_cpo_kg} Kg</strong>
+                Volume Hasil CPO: <strong>{selectedBatchForDist.estimasi_cpo_kg} Liter</strong>
               </div>
 
               <div>
                 <label className="text-muted" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Nama Pabrik (Mill)</label>
-                <input type="text" className="input-premium" value={distForm.mill_name} onChange={e => setDistForm({...distForm, mill_name: e.target.value})} />
+                <input type="text" className="input-premium" value={distForm.mill_name} onChange={e => setDistForm({...distForm, mill_name: e.target.value})} disabled style={{ background: 'var(--surface-hover)', cursor: 'not-allowed' }} />
               </div>
 
               <div>

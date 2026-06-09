@@ -114,7 +114,7 @@ export default function PetaniDashboard({ user }) {
     // Cek Overlap Hutan Lindung (EUDR Compliance)
     const isOverlappingForest = checkPolygonOverlap(polygonCoords, FOREST_ZONE);
     const eudrStatus = isOverlappingForest ? 'non-compliant' : 'compliant';
-    const statusLahan = isOverlappingForest ? 'Deforestasi' : 'Verified';
+    const statusLahan = isOverlappingForest ? 'Deforestasi' : 'Menunggu Review';
 
     let updatedFarms = [];
 
@@ -719,6 +719,10 @@ export default function PetaniDashboard({ user }) {
                       <td>
                         {f.status === 'Deforestasi' ? (
                           <span className="badge badge-red"><AlertTriangle size={12}/> Deforestasi</span>
+                        ) : f.status === 'Menunggu Review' ? (
+                          <span className="badge badge-yellow">⏳ Menunggu Review</span>
+                        ) : f.status === 'Ditolak' ? (
+                          <span className="badge badge-red"><X size={12}/> Ditolak</span>
                         ) : (
                           <span className="badge badge-green"><CheckCircle size={12}/> Verified</span>
                         )}

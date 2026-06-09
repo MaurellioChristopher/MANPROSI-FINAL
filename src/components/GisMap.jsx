@@ -104,6 +104,7 @@ export const checkPolygonOverlap = (polyA, polyB) => {
 export default function GisMap({ polygonCoords, setPolygonCoords, refreshTrigger, editingFarmId, onCancelEdit }) {
   const [center] = useState([-2.20, 113.88]); // Centered closer to Kalimantan mock area
   const [existingFarms, setExistingFarms] = useState([]);
+  const [showHistoricalForest, setShowHistoricalForest] = useState(true);
 
   useEffect(() => {
     try {
@@ -165,7 +166,49 @@ export default function GisMap({ polygonCoords, setPolygonCoords, refreshTrigger
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: '400px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 0 }}>
+      <div style={{ flex: 1, minHeight: '400px', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', zIndex: 0, position: 'relative' }}>
+        {/* Toggle Layer Tutupan Hutan Lindung Historis */}
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          zIndex: 1000,
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(8px)',
+          borderRadius: '8px',
+          padding: '0.75rem 1rem',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+          border: '1px solid rgba(0,0,0,0.1)',
+          minWidth: '220px'
+        }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+            Layer Peta Geographic Information System (GIS)
+          </div>
+          <label style={{ 
+            display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, 
+            color: showHistoricalForest ? '#065f46' : '#94a3b8',
+            padding: '0.4rem 0.5rem',
+            borderRadius: '6px',
+            background: showHistoricalForest ? 'rgba(6,95,70,0.08)' : 'transparent',
+            transition: 'all 0.2s ease'
+          }}>
+            <input 
+              type="checkbox" 
+              checked={showHistoricalForest} 
+              onChange={(e) => setShowHistoricalForest(e.target.checked)}
+              style={{ accentColor: '#065f46', width: '16px', height: '16px', cursor: 'pointer' }}
+            />
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              🌲 Tutupan Hutan Lindung Historis (European Union Deforestation Regulation 2020)
+            </span>
+          </label>
+          {showHistoricalForest && (
+            <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '0.35rem', paddingLeft: '1.75rem', lineHeight: '1.3' }}>
+              Menampilkan zona kawasan hutan lindung sebelum tahun 2020 berdasarkan data Geographic Information System (GIS) masa lampau untuk verifikasi kepatuhan European Union Deforestation Regulation.
+            </div>
+          )}
+        </div>
+
         <MapContainer center={center} zoom={11} style={{ height: '100%', width: '100%', zIndex: 1 }}>
           <TileLayer
             attribution='&copy; Google Maps'
@@ -184,18 +227,22 @@ export default function GisMap({ polygonCoords, setPolygonCoords, refreshTrigger
                <Popup>
                  <b>Draft Lahan Anda</b><br/>
                  Luas: {areaHa} Ha<br/>
-                 Status: {isOverlappingForest ? '🔴 EUDR Deforestasi!' : '🟢 Aman'}
+                 Status: {isOverlappingForest ? '🔴 European Union Deforestation Regulation - Deforestasi!' : '🟢 Aman - Tidak Beririsan dengan Hutan Lindung Historis'}
                </Popup>
             </Polygon>
           )}
 
-          {/* Render Kawasan Hutan Lindung Historis (2020) */}
-          <Polygon positions={FOREST_ZONE} pathOptions={{ color: '#064e3b', fillColor: '#065f46', fillOpacity: 0.3, weight: 3, dashArray: '6, 6' }}>
-             <Popup>
-               <b>🌲 Kawasan Hutan Lindung Historis (EUDR 2020)</b><br/>
-               Zona lindung yang diawasi ketat. Tidak boleh ada aktivitas deforestasi.
-             </Popup>
-          </Polygon>
+          {/* Render Kawasan Hutan Lindung Historis (2020) - Toggleable */}
+          {showHistoricalForest && (
+            <Polygon positions={FOREST_ZONE} pathOptions={{ color: '#064e3b', fillColor: '#065f46', fillOpacity: 0.3, weight: 3, dashArray: '6, 6' }}>
+               <Popup>
+                 <b>🌲 Kawasan Hutan Lindung Historis (European Union Deforestation Regulation 2020)</b><br/>
+                 Zona lindung berdasarkan data peta Geographic Information System (GIS) masa lampau.<br/>
+                 Tidak boleh ada aktivitas deforestasi sesuai regulasi European Union Deforestation Regulation.<br/>
+                 <em>Sumber data: Peta tutupan lahan historis sebelum 31 Desember 2020.</em>
+               </Popup>
+            </Polygon>
+          )}
 
           {/* Render lahan yang sudah terdaftar sebelumnya */}
           {existingFarms.map((farm) => {
@@ -203,9 +250,9 @@ export default function GisMap({ polygonCoords, setPolygonCoords, refreshTrigger
             if (farm.disputed || farm.status === 'Sengketa') {
               color = '#dc2626'; fillColor = '#ef4444'; statusLabel = '🔴 Sengketa';
             } else if (farm.eudr_compliance === 'non-compliant' || farm.status === 'Deforestasi') {
-              color = '#ef4444'; fillColor = '#f87171'; statusLabel = '❌ EUDR Deforestasi';
+              color = '#ef4444'; fillColor = '#f87171'; statusLabel = '❌ European Union Deforestation Regulation - Deforestasi';
             } else if (farm.status === 'Verified') {
-              color = '#15803d'; fillColor = '#22c55e'; statusLabel = '🟢 Verified';
+              color = '#15803d'; fillColor = '#22c55e'; statusLabel = '🟢 Verified (Tidak Beririsan dengan Hutan Lindung)';
             } else {
               color = '#d97706'; fillColor = '#f59e0b'; statusLabel = '🟡 Menunggu Review';
             }
@@ -215,7 +262,12 @@ export default function GisMap({ polygonCoords, setPolygonCoords, refreshTrigger
                   <b>🌴 {farm.farm_name}</b><br/>
                   Sertifikat: {farm.no_sertifikat}<br/>
                   Luas: {farm.luas_ha} Ha<br/>
-                  Status: {statusLabel}
+                  Status: {statusLabel}<br/>
+                  <em style={{ fontSize: '0.85em', color: '#6b7280' }}>
+                    Verifikasi lahan historis: {farm.eudr_compliance === 'non-compliant' 
+                      ? 'Lahan ini BERIRISAN dengan kawasan hutan lindung historis berdasarkan peta Geographic Information System (GIS) masa lampau.' 
+                      : 'Lahan ini TIDAK beririsan dengan kawasan hutan lindung historis. Aman dari deforestasi.'}
+                  </em>
                 </Popup>
               </Polygon>
             );
@@ -232,7 +284,7 @@ export default function GisMap({ polygonCoords, setPolygonCoords, refreshTrigger
               <div>Estimasi Luas: <b style={{ color: 'var(--primary-dark)' }}>{areaHa} Ha</b></div>
               {isOverlappingForest && (
                 <div style={{ color: '#ef4444', fontWeight: 'bold', marginTop: '0.25rem' }}>
-                  ⚠️ TERDIAGNOSA DEFORESTASI (Overlap Hutan Lindung)!
+                  ⚠️ TERDIAGNOSA DEFORESTASI: Lahan beririsan dengan Kawasan Hutan Lindung Historis (European Union Deforestation Regulation)!
                 </div>
               )}
             </div>
@@ -240,13 +292,15 @@ export default function GisMap({ polygonCoords, setPolygonCoords, refreshTrigger
         )}
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.75rem', background: 'rgba(255,255,255,0.85)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', fontSize: '0.75rem', fontWeight: 600 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#22c55e', display: 'inline-block' }}></span>Lahan Terverifikasi (Aman)</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>Legenda Peta Geographic Information System (GIS)</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#22c55e', display: 'inline-block' }}></span>Lahan Terverifikasi (Aman - Tidak Beririsan Hutan Lindung)</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#f59e0b', display: 'inline-block' }}></span>Menunggu Review</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#ef4444', display: 'inline-block' }}></span>Sengketa / Deforestasi</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span style={{ width: 12, height: 12, border: '2px dashed #065f46', borderRadius: 2, background: 'rgba(6,95,70,0.2)', display: 'inline-block' }}></span>Kawasan Hutan Lindung (EUDR 2020)</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><span style={{ width: 12, height: 12, border: '2px dashed #065f46', borderRadius: 2, background: 'rgba(6,95,70,0.2)', display: 'inline-block' }}></span>Kawasan Hutan Lindung Historis (European Union Deforestation Regulation 2020)</span>
         </div>
       </div>
     </div>
   );
 }
+
 
