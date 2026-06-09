@@ -38,6 +38,12 @@ function RegisterScreen({ onBackToLogin, onRegisterSuccess }) {
     setIsLoading(true);
     setErrorMsg('');
 
+    if (password.length < 6) {
+      setErrorMsg('Password minimal 6 karakter.');
+      setIsLoading(false);
+      return;
+    }
+
     if (role === 'petani') {
       if (!nik || nik.length !== 16 || isNaN(nik)) {
         setErrorMsg('NIK harus berupa 16 digit angka.');
@@ -570,11 +576,25 @@ function DashboardPage({ role, user }) {
 }
 
 export default function App() {
-  const [role, setRole] = useState(null);
-  const [user, setUser] = useState(null);
+  const [role, setRole] = useState(() => localStorage.getItem('agrigems_active_role') || null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('agrigems_active_user');
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  const handleLogin = (r, u) => { setRole(r); setUser(u); };
-  const handleLogout = () => { setRole(null); setUser(null); };
+  const handleLogin = (r, u) => { 
+    setRole(r); 
+    setUser(u); 
+    localStorage.setItem('agrigems_active_role', r);
+    localStorage.setItem('agrigems_active_user', JSON.stringify(u));
+  };
+  
+  const handleLogout = () => { 
+    setRole(null); 
+    setUser(null); 
+    localStorage.removeItem('agrigems_active_role');
+    localStorage.removeItem('agrigems_active_user');
+  };
 
   return (
     <Router>
