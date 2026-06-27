@@ -34,21 +34,35 @@ export async function syncFromSupabase(key) {
   const local = localStorage.getItem(key);
   
   // --- INJEKSI DATA DUMMY UNTUK TESTING KATALON ---
-  // Jika buka di browser baru (Katalon) dan data kosong, otomatis buatkan 1 lahan dummy.
+  // Jika buka di browser baru (Katalon) dan data kosong, otomatis buatkan lahan dummy.
   if (!local && key === 'agrigems_farms') {
     console.log("[Test Mode] Injecting dummy farm data for Katalon/fresh session...");
-    const dummyFarms = [{
-      id: 'FARM-TEST',
-      farm_name: 'Blok Katalon (Auto-Generated)',
-      legalitas: 'SHM',
-      no_sertifikat: 'TEST-123',
-      sertifikasi: 'tidak_ada',
-      luas_ha: 10.5,
-      eudr_compliance: 'compliant',
-      status: 'Menunggu Review',
-      petani_id: 'petani-1', // Default ID untuk user 'petani1@agrigems.com' (Bpk Budi)
-      polygon: []
-    }];
+    const dummyFarms = [
+      {
+        id: 'FARM-JAWA-BARAT',
+        farm_name: 'Blok Jawa Barat',
+        legalitas: 'SHM',
+        no_sertifikat: 'JB-123',
+        sertifikasi: 'tidak_ada',
+        luas_ha: 3376.97,
+        eudr_compliance: 'compliant',
+        status: 'Menunggu Review',
+        petani_id: 'petani-1',
+        polygon: []
+      },
+      {
+        id: 'FARM-BLOK-J',
+        farm_name: 'Blok J',
+        legalitas: 'SHM',
+        no_sertifikat: 'J-123',
+        sertifikasi: 'tidak_ada',
+        luas_ha: 86.36,
+        eudr_compliance: 'compliant',
+        status: 'Menunggu Review',
+        petani_id: 'petani-1',
+        polygon: []
+      }
+    ];
     localStorage.setItem(key, JSON.stringify(dummyFarms));
     return dummyFarms;
   }
